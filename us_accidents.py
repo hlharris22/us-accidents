@@ -23,11 +23,10 @@ print(acc_df.info())
 
 # Calculate time of delay (seconds) from start and end time - Convert times to datetime objects
 acc_df[['Start_Time', 'End_Time']] = acc_df[['Start_Time', 'End_Time']].apply(pd.to_datetime)
-acc_df['Delay_Time'] = acc_df['End_Time'] - acc_df['Start_Time']
-acc_df['Delay_Time'] = acc_df['Delay_Time'] / np.timedelta64(1, 's')  # Convert time to second.
+acc_df['Delay_Time(s)'] = acc_df['End_Time'] - acc_df['Start_Time']
+acc_df['Delay_Time(s)'] = acc_df['Delay_Time(s)'] / np.timedelta64(1, 's')  # Convert time to second.
 acc_df['Month'] = acc_df['Start_Time'].dt.month  # Add a column for month
 acc_df['Year'] = acc_df['Start_Time'].dt.year  # Add a column for year
-print(acc_df.info())
 
 # Drop rows where both columns contain null values. Can not determine precipitation
 acc_df = acc_df.dropna(how='all', subset=['Precipitation(in)', 'Weather_Condition'])
@@ -54,15 +53,12 @@ print("----DataFrame info after dropping null values----")
 print(acc_df.info())
 print("----Post null value Removal Data Inspection----")
 print(acc_df.isnull().sum())
-print(acc_df)
 
 # Convert boolean features to 0 and 1.
 acc_df.iloc[:, 12:25] = acc_df.iloc[:, 12:25].astype(int)
 
 # Convert Day and Night to Day = 0, Night = 1
 acc_df['Sunrise_Sunset'].replace({"Day": 0, "Night": 1}, inplace=True)
-print(acc_df.info())
-
 
 # Remove outliers
 # Function to remove outliers from a specific column
@@ -92,7 +88,7 @@ outliers('Temperature(F)', acc_df)
 outliers('Humidity(%)', acc_df)
 outliers('Visibility(mi)', acc_df)
 outliers('Precipitation(in)', acc_df)
-outliers('Delay_Time', acc_df)
+outliers('Delay_Time(s)', acc_df)
 
 
 # Descriptive Statistics for quantitative features
@@ -130,8 +126,8 @@ print("----Frequency Statistics for Year----")
 print(frequency_stats(acc_df['Year']))
 
 # Display descriptive statistics
-print("----Descriptive Statistics for Quantitative Features----")
 statistics_df = describe(acc_df.iloc[:, [1, 5, 8, 9, 10, 11, 26]])
+print("----Descriptive Statistics for Quantitative Features----")
 print(statistics_df)
 
 # Normalize Values
@@ -141,7 +137,6 @@ scaler.fit(acc_df_normalized)
 scaled = scaler.transform(acc_df_normalized)
 acc_df_normalized = pd.DataFrame(scaled, columns=acc_df_normalized.columns)
 acc_df_normalized['Severity'] = acc_df['Severity']
-print(acc_df_normalized)
 
 # Descriptive Bivariate Analysis
 covariance_df = acc_df_normalized.cov().round(4)

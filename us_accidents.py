@@ -29,16 +29,19 @@ acc_df['Month'] = acc_df['Start_Time'].dt.month  # Add a column for month
 acc_df['Year'] = acc_df['Start_Time'].dt.year  # Add a column for year
 
 # Remove features
-acc_df.drop(acc_df.columns[[3, 6, 7, 9, 10, 11, 12, 13, 16, 17, 18, 19, 20, 22, 24, 26, 27, 44, 45, 46]],
+acc_df.drop(acc_df.columns[[0, 3, 6, 7, 9, 10, 11, 12, 13, 14, 16, 17, 18, 19, 20, 22, 24, 26, 27, 44, 45, 46]],
             axis=1,
             inplace=True)
+acc_df.reset_index().drop(["index"], axis=1)
 print("----Post Feature Removal Data Inspection----")
 print(acc_df.info())
 
 # Drop rows where both columns contain null values. Can not determine precipitation
-acc_df = acc_df.dropna(how='all', subset=['Precipitation(in)', 'Weather_Condition'])
+acc_df.dropna(how='all', subset=['Precipitation(in)', 'Weather_Condition'], inplace=True)
 print("----After precip and weather removal----")
+acc_df = acc_df.reset_index().drop(["index"], axis=1)
 print(acc_df.info())
+
 # Create boolean column specifying if there is precipitation
 acc_df['precipitation'] = acc_df['Weather_Condition'].str.contains('Rain|Snow|Drizzle|Mix|Ice|Sleet|Hail', case=False,
                                                                    regex=True)
@@ -49,21 +52,21 @@ print("----After precip = 0----")
 print(acc_df.info())
 
 # Remove features
-acc_df.drop(acc_df.columns[[12, 30]],
+acc_df.drop(acc_df.columns[[10, 28]],
             axis=1,
             inplace=True)
 
 # Check DataFrame for null values and remove rows
 print("----Sum of null Values----")
 print(acc_df.isnull().sum())
-acc_df.dropna(how='any', axis=0, inplace=True)
+acc_df = acc_df.dropna(how='any', axis=0).reset_index().drop(["index"], axis=1)
 print("----DataFrame info after dropping null values----")
 print(acc_df.info())
 print("----Post null value Removal Data Inspection----")
 print(acc_df.isnull().sum())
 
 # Convert boolean features to 0 and 1.
-acc_df.iloc[:, 12:25] = acc_df.iloc[:, 12:25].astype(int)
+acc_df.iloc[:, 10:23] = acc_df.iloc[:, 10:23].astype(int)
 
 # Convert Day and Night to Day = 0, Night = 1
 acc_df['Sunrise_Sunset'].replace({"Day": 0, "Night": 1}, inplace=True)
@@ -142,18 +145,24 @@ print(freq_year)
 freq_year.to_csv(r'Frequency_Statistics_Year.csv', index=False)
 
 # Display descriptive statistics
-statistics_df = describe(acc_df.iloc[:, [1, 5, 8, 9, 10, 11, 26]])
+statistics_df = describe(acc_df.iloc[:, [0, 4, 6, 7, 8, 9, 24]])
 print("----Descriptive Statistics for Quantitative Features----")
 print(statistics_df)
 statistics_df.to_csv(r'Descriptive_Statistics.csv', index=False)
 
+# # Normalize Values
+# acc_df_normalized = acc_df.iloc[:, [0, 4, 6, 7, 8, 9, 24]]
+# scaler = MinMaxScaler()
+# scaler.fit(acc_df_normalized)
+# scaled = scaler.transform(acc_df_normalized)
+# acc_df_normalized = pd.DataFrame(scaled, columns=acc_df_normalized.columns)
+# acc_df_normalized['Severity'] = acc_df['Severity']
+
 # Normalize Values
-acc_df_normalized = acc_df.iloc[:, [5, 8, 9, 10, 11, 26]]
-scaler = MinMaxScaler()
-scaler.fit(acc_df_normalized)
-scaled = scaler.transform(acc_df_normalized)
-acc_df_normalized = pd.DataFrame(scaled, columns=acc_df_normalized.columns)
-acc_df_normalized['Severity'] = acc_df['Severity']
+acc_df.iloc[:, [4, 6, 7, 8, 9, 24]] = MinMaxScaler().fit_transform(acc_df.iloc[:, [4, 6, 7, 8, 9, 24]])
+acc_df_normalized = acc_df.iloc[:, [0, 4, 6, 7, 8, 9, 24]]
+print(acc_df.head(20))
+print(acc_df.info())
 
 # Descriptive Bivariate Analysis
 covariance_df = acc_df_normalized.cov().round(4)
@@ -169,9 +178,7 @@ print("----Spearman Correlation----")
 print(spearman_df)
 spearman_df.to_csv(r'Spearman.csv', index=False)
 
-road_acc_df = acc_df.iloc[:, [1, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]]
-road_acc_df['Delay_Time(s)'] = acc_df_normalized['Delay_Time(s)']
-road_acc_df['Distance'] = acc_df_normalized['Distance(mi)']
+road_acc_df = acc_df.iloc[:, [0, 4, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]]
 spearman_df_2 = road_acc_df.corr("spearman").round(4)
 print("----Spearman Correlation (Road Amenities)----")
 print(spearman_df_2)
@@ -187,4 +194,20 @@ b.set_xticklabels(b.get_xmajorticklabels(), fontsize = 12)
 fig = plt.gcf()
 fig.set_size_inches( 18, 8)
 plt.show()
+
+state_one_hot = pd.get_dummies(acc_df.State, prefix='State')
+month_one_hot = pd.get_dummies(acc_df.Month, prefix='Month')
+year_one_hot = pd.get_dummies(acc_df.Year, prefix='Year')
+concat_frames = [acc_df.reset_index(drop=True), state_one_hot.reset_index(drop=True), month_one_hot.reset_index(drop=True), year_one_hot.reset_index(drop=True)]
+acc_df = pd.concat(concat_frames, axis=1)
+
+# Remove features
+acc_df.drop(acc_df.columns[[1, 5, 25, 26]],
+            axis=1,
+            inplace=True)
+
+print(acc_df.info())
+acc_df.to_csv(r'Cleaned_Data.csv', index=False)
+
+
 

@@ -119,16 +119,23 @@ def frequency_stats(series):
 
 # Display frequency statistics
 print("----Frequency Statistics for Severity----")
-print(frequency_stats(acc_df['Severity']))
+freq_severity = frequency_stats(acc_df['Severity'])
+print(freq_severity)
+freq_severity.to_csv(r'Frequency_Statistics_Severity.csv', index=False)
 print("----Frequency Statistics for Month----")
-print(frequency_stats(acc_df['Month']))
+freq_month = frequency_stats(acc_df['Month'])
+print(freq_month)
+freq_month.to_csv(r'Frequency_Statistics_Month.csv', index=False)
 print("----Frequency Statistics for Year----")
-print(frequency_stats(acc_df['Year']))
+freq_year = frequency_stats(acc_df['Year'])
+print(freq_year)
+freq_year.to_csv(r'Frequency_Statistics_Year.csv', index=False)
 
 # Display descriptive statistics
 statistics_df = describe(acc_df.iloc[:, [1, 5, 8, 9, 10, 11, 26]])
 print("----Descriptive Statistics for Quantitative Features----")
 print(statistics_df)
+statistics_df.to_csv(r'Descriptive_Statistics.csv', index=False)
 
 # Normalize Values
 acc_df_normalized = acc_df.iloc[:, [5, 8, 9, 10, 11, 26]]
@@ -142,18 +149,32 @@ acc_df_normalized['Severity'] = acc_df['Severity']
 covariance_df = acc_df_normalized.cov().round(4)
 print("----Covariance----")
 print(covariance_df)
+covariance_df.to_csv(r'Covariance.csv', index=False)
 pearson_df = acc_df_normalized.corr("pearson").round(4)
 print("----Pearson Correlation----")
 print(pearson_df)
+pearson_df.to_csv(r'Pearson.csv', index=False)
 spearman_df = acc_df_normalized.corr("spearman").round(4)
 print("----Spearman Correlation----")
 print(spearman_df)
+spearman_df.to_csv(r'Spearman.csv', index=False)
 
-road_acc_df = acc_df.iloc[:, [1, 5, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26]]
+road_acc_df = acc_df.iloc[:, [1, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]]
+road_acc_df['Delay_Time(s)'] = acc_df_normalized['Delay_Time(s)']
+road_acc_df['Distance'] = acc_df_normalized['Distance(mi)']
 spearman_df_2 = road_acc_df.corr("spearman").round(4)
 print("----Spearman Correlation (Road Amenities)----")
 print(spearman_df_2)
+spearman_df_2.to_csv(r'Spearman_Road.csv', index=False)
 
 sns.countplot(x='Month', hue="Severity", data=acc_df)
+plt.show()
+
+b = sns.countplot(x='State', data=acc_df, order=acc_df['State'].value_counts().index)
+b.set_xlabel("State", fontsize=25)
+b.set_ylabel("Count", fontsize=25)
+b.set_xticklabels(b.get_xmajorticklabels(), fontsize = 12)
+fig = plt.gcf()
+fig.set_size_inches( 18, 8)
 plt.show()
 

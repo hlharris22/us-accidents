@@ -28,22 +28,30 @@ acc_df['Delay_Time(s)'] = acc_df['Delay_Time(s)'] / np.timedelta64(1, 's')  # Co
 acc_df['Month'] = acc_df['Start_Time'].dt.month  # Add a column for month
 acc_df['Year'] = acc_df['Start_Time'].dt.year  # Add a column for year
 
+# Remove features
+acc_df.drop(acc_df.columns[[3, 6, 7, 9, 10, 11, 12, 13, 16, 17, 18, 19, 20, 22, 24, 26, 27, 44, 45, 46]],
+            axis=1,
+            inplace=True)
+print("----Post Feature Removal Data Inspection----")
+print(acc_df.info())
+
 # Drop rows where both columns contain null values. Can not determine precipitation
 acc_df = acc_df.dropna(how='all', subset=['Precipitation(in)', 'Weather_Condition'])
-
+print("----After precip and weather removal----")
+print(acc_df.info())
 # Create boolean column specifying if there is precipitation
 acc_df['precipitation'] = acc_df['Weather_Condition'].str.contains('Rain|Snow|Drizzle|Mix|Ice|Sleet|Hail', case=False,
                                                                    regex=True)
 
 # Set precipitation amount to 0 if no precipitation weather condition
 acc_df.loc[(acc_df['Precipitation(in)'].isnull()) & (acc_df['precipitation'] == False), "Precipitation(in)"] = 0
+print("----After precip = 0----")
+print(acc_df.info())
 
 # Remove features
-acc_df.drop(acc_df.columns[[3, 6, 7, 9, 10, 11, 12, 13, 16, 17, 18, 19, 20, 22, 24, 26, 27, 29, 44, 45, 46, 50]],
+acc_df.drop(acc_df.columns[[12, 30]],
             axis=1,
             inplace=True)
-print("----Post Feature Removal Data Inspection----")
-print(acc_df.info())
 
 # Check DataFrame for null values and remove rows
 print("----Sum of null Values----")
@@ -66,6 +74,8 @@ def remove_outliers(column_name, data_frame):
     q_1 = acc_df[column_name].quantile(0.25)
     q_3 = acc_df[column_name].quantile(0.75)
     iqr = q_3 - q_1
+    lower = (q_1 - 1.5 * iqr)
+    upper = (q_3 + 1.5 * iqr)
     return data_frame[~((data_frame[column_name] < (q_1 - 1.5 * iqr)) | (data_frame[column_name] > (q_3 + 1.5 * iqr)))]
 
 

@@ -175,15 +175,24 @@ spearman_df_2.to_csv(r'Spearman_Road.csv', index=False)
 
 # Plot Severity count by Month
 sns.countplot(x='Month', hue="Severity", data=acc_df)
+plt.gcf().set_size_inches(12,6)
+plt.xlabel('Month', fontweight='bold', fontsize = 14)
+plt.ylabel('Count', fontweight='bold', fontsize = 14)
+plt.legend(title = "Severity", bbox_to_anchor=(1.01, 1), borderaxespad=0, fontsize=10, shadow=True, borderpad=1)
+plt.title("Accident Severity by Month", fontsize = 15, fontweight='bold')
+# Save figure
+plt.savefig("Accident_Severity_Month", dpi=1200, bbox_inches = 'tight')
 plt.show()
 
-# Plot number of accidents per US State
-b = sns.countplot(x='State', data=acc_df, order=acc_df['State'].value_counts().index)
-b.set_xlabel("State", fontsize=25)
-b.set_ylabel("Count", fontsize=25)
-b.set_xticklabels(b.get_xmajorticklabels(), fontsize = 12)
-fig = plt.gcf()
-fig.set_size_inches( 18, 8)
+sns.countplot(x='State', data=acc_df, order=acc_df['State'].value_counts().index)
+plt.gcf().set_size_inches(16,6)
+plt.xlabel("State", fontweight= 'bold', fontsize=25)
+plt.ylabel("Count", fontweight= 'bold', fontsize=25)
+plt.xticks(fontsize=12)
+plt.yticks(fontsize=12)
+plt.title("Accidents by State", fontsize = 15, fontweight='bold')
+# Save figure
+plt.savefig("Accident_Count_State", dpi=1200, bbox_inches = 'tight')
 plt.show()
 
 # Convert nominal values to

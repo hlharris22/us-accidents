@@ -11,7 +11,7 @@ import numpy as np
 import seaborn as sns
 from sklearn.preprocessing import MinMaxScaler
 
-# pd.set_option('display.max_rows', None)
+# Set pandas DataFrame options
 pd.set_option('display.max_columns', None)
 
 # Store data as a DataFrame object
@@ -48,7 +48,7 @@ acc_df['precipitation'] = acc_df['Weather_Condition'].str.contains('Rain|Snow|Dr
 
 # Set precipitation amount to 0 if no precipitation weather condition
 acc_df.loc[(acc_df['Precipitation(in)'].isnull()) & (acc_df['precipitation'] == False), "Precipitation(in)"] = 0
-print("----After precip = 0----")
+print("----After Setting Precipitation(in) = 0----")
 print(acc_df.info())
 
 # Remove features
@@ -150,19 +150,9 @@ print("----Descriptive Statistics for Quantitative Features----")
 print(statistics_df)
 statistics_df.to_csv(r'Descriptive_Statistics.csv', index=False)
 
-# # Normalize Values
-# acc_df_normalized = acc_df.iloc[:, [0, 4, 6, 7, 8, 9, 24]]
-# scaler = MinMaxScaler()
-# scaler.fit(acc_df_normalized)
-# scaled = scaler.transform(acc_df_normalized)
-# acc_df_normalized = pd.DataFrame(scaled, columns=acc_df_normalized.columns)
-# acc_df_normalized['Severity'] = acc_df['Severity']
-
 # Normalize Values
 acc_df.iloc[:, [4, 6, 7, 8, 9, 24]] = MinMaxScaler().fit_transform(acc_df.iloc[:, [4, 6, 7, 8, 9, 24]])
 acc_df_normalized = acc_df.iloc[:, [0, 4, 6, 7, 8, 9, 24]]
-print(acc_df.head(20))
-print(acc_df.info())
 
 # Descriptive Bivariate Analysis
 covariance_df = acc_df_normalized.cov().round(4)
@@ -177,16 +167,17 @@ spearman_df = acc_df_normalized.corr("spearman").round(4)
 print("----Spearman Correlation----")
 print(spearman_df)
 spearman_df.to_csv(r'Spearman.csv', index=False)
-
 road_acc_df = acc_df.iloc[:, [0, 4, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]]
 spearman_df_2 = road_acc_df.corr("spearman").round(4)
 print("----Spearman Correlation (Road Amenities)----")
 print(spearman_df_2)
 spearman_df_2.to_csv(r'Spearman_Road.csv', index=False)
 
+# Plot Severity count by Month
 sns.countplot(x='Month', hue="Severity", data=acc_df)
 plt.show()
 
+# Plot number of accidents per US State
 b = sns.countplot(x='State', data=acc_df, order=acc_df['State'].value_counts().index)
 b.set_xlabel("State", fontsize=25)
 b.set_ylabel("Count", fontsize=25)
@@ -195,6 +186,7 @@ fig = plt.gcf()
 fig.set_size_inches( 18, 8)
 plt.show()
 
+# Convert nominal values to
 state_one_hot = pd.get_dummies(acc_df.State, prefix='State')
 month_one_hot = pd.get_dummies(acc_df.Month, prefix='Month')
 year_one_hot = pd.get_dummies(acc_df.Year, prefix='Year')
@@ -206,6 +198,7 @@ acc_df.drop(acc_df.columns[[1, 5, 25, 26]],
             axis=1,
             inplace=True)
 
+print("----Cleaned DataFrame----")
 print(acc_df.info())
 acc_df.to_csv(r'Cleaned_Data.csv', index=False)
 

@@ -79,7 +79,7 @@ def remove_outliers(column_name, data_frame):
     iqr = q_3 - q_1
     lower = (q_1 - 1.5 * iqr)
     upper = (q_3 + 1.5 * iqr)
-    return data_frame[~((data_frame[column_name] < (q_1 - 1.5 * iqr)) | (data_frame[column_name] > (q_3 + 1.5 * iqr)))]
+    return data_frame[~((data_frame[column_name] < lower) | (data_frame[column_name] > upper))]
 
 
 def outliers(column_name, data_frame):
@@ -103,7 +103,13 @@ outliers('Visibility(mi)', acc_df)
 outliers('Precipitation(in)', acc_df)
 outliers('Delay_Time(s)', acc_df)
 
+# Remove outliers
+acc_df = remove_outliers('Distance(mi)', acc_df)
+acc_df = remove_outliers('Temperature(F)', acc_df)
+acc_df = remove_outliers('Delay_Time(s)', acc_df)
+acc_df = acc_df.reset_index(drop=True)
 
+print(acc_df.info())
 # Descriptive Statistics for quantitative features
 # Function to add mean absolute deviation (MAD) and Mode to describe statistics
 def describe(df):
@@ -173,7 +179,7 @@ print("----Spearman Correlation (Road Amenities)----")
 print(spearman_df_2)
 spearman_df_2.to_csv(r'Spearman_Road.csv', index=False)
 
-# Plot Severity count by Month
+# Plot Accident Severity count by Month
 sns.countplot(x='Month', hue="Severity", data=acc_df)
 plt.gcf().set_size_inches(12,6)
 plt.xlabel('Month', fontweight='bold', fontsize = 14)
@@ -184,13 +190,14 @@ plt.title("Accident Severity by Month", fontsize = 15, fontweight='bold')
 plt.savefig("Accident_Severity_Month", dpi=1200, bbox_inches = 'tight')
 plt.show()
 
+# Plot Accident count by State
 sns.countplot(x='State', data=acc_df, order=acc_df['State'].value_counts().index)
-plt.gcf().set_size_inches(16,6)
-plt.xlabel("State", fontweight= 'bold', fontsize=25)
-plt.ylabel("Count", fontweight= 'bold', fontsize=25)
-plt.xticks(fontsize=12)
+plt.gcf().set_size_inches(16,7)
+plt.xlabel("State", fontweight= 'bold', fontsize=22)
+plt.ylabel("Count", fontweight= 'bold', fontsize=22)
+plt.xticks(fontsize=12, rotation = 90)
 plt.yticks(fontsize=12)
-plt.title("Accidents by State", fontsize = 15, fontweight='bold')
+plt.title("Accidents by State", fontsize = 25, fontweight='bold')
 # Save figure
 plt.savefig("Accident_Count_State", dpi=1200, bbox_inches = 'tight')
 plt.show()
@@ -207,6 +214,7 @@ acc_df.drop(acc_df.columns[[1, 5, 25, 26]],
             axis=1,
             inplace=True)
 
+# Inspect cleaned data
 print("----Cleaned DataFrame----")
 print(acc_df.info())
 acc_df.to_csv(r'Cleaned_Data.csv', index=False)

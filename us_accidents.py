@@ -81,8 +81,8 @@ def remove_outliers(column_name, data_frame):
     upper = (q_3 + 1.5 * iqr)
     return data_frame[~((data_frame[column_name] < lower) | (data_frame[column_name] > upper))]
 
-
-def outliers(column_name, data_frame):
+# Function to print outliers
+def print_outliers(column_name, data_frame):
     q_1 = data_frame[column_name].quantile(0.25)
     q_3 = data_frame[column_name].quantile(0.75)
     iqr = q_3 - q_1
@@ -96,12 +96,12 @@ def outliers(column_name, data_frame):
 
 
 # Print outliers
-outliers('Distance(mi)', acc_df)
-outliers('Temperature(F)', acc_df)
-outliers('Humidity(%)', acc_df)
-outliers('Visibility(mi)', acc_df)
-outliers('Precipitation(in)', acc_df)
-outliers('Delay_Time(s)', acc_df)
+print_outliers('Distance(mi)', acc_df)
+print_outliers('Temperature(F)', acc_df)
+print_outliers('Humidity(%)', acc_df)
+print_outliers('Visibility(mi)', acc_df)
+print_outliers('Precipitation(in)', acc_df)
+print_outliers('Delay_Time(s)', acc_df)
 
 # Remove outliers
 acc_df = remove_outliers('Distance(mi)', acc_df)
@@ -109,7 +109,7 @@ acc_df = remove_outliers('Temperature(F)', acc_df)
 acc_df = remove_outliers('Delay_Time(s)', acc_df)
 acc_df = acc_df.reset_index(drop=True)
 
-print(acc_df.info())
+
 # Descriptive Statistics for quantitative features
 # Function to add mean absolute deviation (MAD) and Mode to describe statistics
 def describe(df):

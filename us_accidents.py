@@ -21,6 +21,22 @@ acc_df = pd.read_csv("US_Accidents_Dec20_updated.csv")
 print("----Initial Data Inspection----")
 print(acc_df.info())
 
+# Remove Duplicates
+acc_df.drop_duplicates(subset=['Severity', 'Start_Time', 'End_Time', 'Start_Lat', 'Start_Lng', 'End_Lat', 'End_Lng',
+                               'Distance(mi)', 'Description', 'Number', 'Street', 'Side', 'City', 'County', 'State',
+                               'Zipcode', 'Country', 'Timezone', 'Airport_Code', 'Weather_Timestamp', 'Temperature(F)',
+                               'Wind_Chill(F)', 'Humidity(%)', 'Pressure(in)', 'Visibility(mi)', 'Wind_Direction',
+                               'Wind_Speed(mph)', 'Precipitation(in)', 'Weather_Condition', 'Amenity', 'Bump',
+                               'Crossing', 'Give_Way', 'Junction', 'No_Exit', 'Railway', 'Roundabout', 'Station',
+                               'Stop', 'Traffic_Calming', 'Traffic_Signal', 'Turning_Loop', 'Sunrise_Sunset',
+                               'Civil_Twilight', 'Nautical_Twilight', 'Astronomical_Twilight'
+                               ],
+                       keep='first',
+                       inplace=True)
+print("----Data Inspection after Removal of Duplicates----")
+acc_df = acc_df.reset_index(drop=True)
+print(acc_df.info())
+
 # Calculate time of delay (seconds) from start and end time - Convert times to datetime objects
 acc_df[['Start_Time', 'End_Time']] = acc_df[['Start_Time', 'End_Time']].apply(pd.to_datetime)
 acc_df['Delay_Time(s)'] = acc_df['End_Time'] - acc_df['Start_Time']
@@ -71,6 +87,7 @@ acc_df.iloc[:, 10:23] = acc_df.iloc[:, 10:23].astype(int)
 # Convert Day and Night to Day = 0, Night = 1
 acc_df['Sunrise_Sunset'].replace({"Day": 0, "Night": 1}, inplace=True)
 
+
 # Remove outliers
 # Function to remove outliers from a specific column
 def remove_outliers(column_name, data_frame):
@@ -80,6 +97,7 @@ def remove_outliers(column_name, data_frame):
     lower = (q_1 - 1.5 * iqr)
     upper = (q_3 + 1.5 * iqr)
     return data_frame[~((data_frame[column_name] < lower) | (data_frame[column_name] > upper))]
+
 
 # Function to print outliers
 def print_outliers(column_name, data_frame):
@@ -181,32 +199,33 @@ spearman_df_2.to_csv(r'Spearman_Road.csv', index=False)
 
 # Plot Accident Severity count by Month
 sns.countplot(x='Month', hue="Severity", data=acc_df)
-plt.gcf().set_size_inches(12,6)
-plt.xlabel('Month', fontweight='bold', fontsize = 14)
-plt.ylabel('Count', fontweight='bold', fontsize = 14)
-plt.legend(title = "Severity", bbox_to_anchor=(1.01, 1), borderaxespad=0, fontsize=10, shadow=True, borderpad=1)
-plt.title("Accident Severity by Month", fontsize = 15, fontweight='bold')
+plt.gcf().set_size_inches(12, 6)
+plt.xlabel('Month', fontweight='bold', fontsize=14)
+plt.ylabel('Count', fontweight='bold', fontsize=14)
+plt.legend(title="Severity", bbox_to_anchor=(1.01, 1), borderaxespad=0, fontsize=10, shadow=True, borderpad=1)
+plt.title("Accident Severity by Month", fontsize=15, fontweight='bold')
 # Save figure
-plt.savefig("Accident_Severity_Month", dpi=1200, bbox_inches = 'tight')
+plt.savefig("Accident_Severity_Month", dpi=1200, bbox_inches='tight')
 plt.show()
 
 # Plot Accident count by State
 sns.countplot(x='State', data=acc_df, order=acc_df['State'].value_counts().index)
-plt.gcf().set_size_inches(16,7)
-plt.xlabel("State", fontweight= 'bold', fontsize=22)
-plt.ylabel("Count", fontweight= 'bold', fontsize=22)
-plt.xticks(fontsize=12, rotation = 90)
+plt.gcf().set_size_inches(16, 7)
+plt.xlabel("State", fontweight='bold', fontsize=22)
+plt.ylabel("Count", fontweight='bold', fontsize=22)
+plt.xticks(fontsize=12, rotation=90)
 plt.yticks(fontsize=12)
-plt.title("Accidents by State", fontsize = 25, fontweight='bold')
+plt.title("Accidents by State", fontsize=25, fontweight='bold')
 # Save figure
-plt.savefig("Accident_Count_State", dpi=1200, bbox_inches = 'tight')
+plt.savefig("Accident_Count_State", dpi=1200, bbox_inches='tight')
 plt.show()
 
 # Convert nominal values to
 state_one_hot = pd.get_dummies(acc_df.State, prefix='State')
 month_one_hot = pd.get_dummies(acc_df.Month, prefix='Month')
 year_one_hot = pd.get_dummies(acc_df.Year, prefix='Year')
-concat_frames = [acc_df.reset_index(drop=True), state_one_hot.reset_index(drop=True), month_one_hot.reset_index(drop=True), year_one_hot.reset_index(drop=True)]
+concat_frames = [acc_df.reset_index(drop=True), state_one_hot.reset_index(drop=True),
+                 month_one_hot.reset_index(drop=True), year_one_hot.reset_index(drop=True)]
 acc_df = pd.concat(concat_frames, axis=1)
 
 # Remove features
@@ -218,6 +237,3 @@ acc_df.drop(acc_df.columns[[1, 5, 25, 26]],
 print("----Cleaned DataFrame----")
 print(acc_df.info())
 acc_df.to_csv(r'Cleaned_Data.csv', index=False)
-
-
-

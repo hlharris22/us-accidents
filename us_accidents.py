@@ -9,9 +9,19 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
+from mlxtend.feature_selection import SequentialFeatureSelector as SFS
+from mlxtend.plotting import plot_sequential_feature_selection as plot_sfs
+from imblearn.over_sampling import SMOTE
+from imblearn.pipeline import Pipeline
+from imblearn.under_sampling import RandomUnderSampler
+from numpy import mean
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import RepeatedStratifiedKFold, cross_val_score, cross_validate, KFold
 from sklearn.preprocessing import MinMaxScaler
 
 # Set pandas DataFrame options
+from sklearn.tree import DecisionTreeClassifier
+
 pd.set_option('display.max_columns', None)
 
 # Store data as a DataFrame object
@@ -232,8 +242,67 @@ acc_df = pd.concat(concat_frames, axis=1)
 acc_df.drop(acc_df.columns[[1, 5, 25, 26]],
             axis=1,
             inplace=True)
+acc_df = acc_df.drop(['Start_Lat', 'Start_Lng'], axis=1)
 
 # Inspect cleaned data
 print("----Cleaned DataFrame----")
 print(acc_df.info())
 acc_df.to_csv(r'Cleaned_Data.csv', index=False)
+
+print(acc_df['Severity'].value_counts())
+# https://machinelearningmastery.com/smote-oversampling-for-imbalanced-classification/
+# https://machinelearningmastery.com/multi-class-imbalanced-classification/
+# https://machinelearningmastery.com/imbalanced-classification-with-python-7-day-mini-course/
+# https://machinelearningmastery.com/multinomial-logistic-regression-with-python/
+
+# Convert Severity to a binary ranking
+acc_df['Severity'] = acc_df['Severity'].replace([1,2], 1)
+acc_df['Severity'] = acc_df['Severity'].replace([3,4], 2)
+print("----Class Value Counts----")
+print(acc_df['Severity'].value_counts())
+
+
+
+
+# y = acc_df['Severity']
+# X = acc_df.drop(['Severity'], axis=1)
+# print(y)
+# print(X)
+#
+# sfs = SFS(LogisticRegression(), k_features=(1, 30), floating=False, forward=True, cv=0)
+# sfs.fit(X, y)
+#
+# # Best Features found through forward selection
+# print(f'Forward Selection: {sfs.k_feature_names_}')
+# print(f'score = {sfs.k_score_}')
+#
+# fig1 = plot_sfs(sfs.get_metric_dict(), kind='std_dev')
+# plt.grid()
+# plt.show()
+
+#Machine Learning Algorithms
+y = acc_df['Severity'].to_numpy()
+X = acc_df.drop(['Severity'], axis=1).to_numpy()
+print(y)
+print(X)
+models = [DecisionTreeClassifier(), LogisticRegression(solver='liblinear', class_weight='balanced')]
+for model in models:
+    # define pipeline
+    scoring = ['precision', 'recall', 'f1', 'roc_auc']
+    under = RandomUnderSampler(sampling_strategy=0.5)
+    steps = [('under', under), ('model', model)]
+    pipeline = Pipeline(steps=steps)
+
+    # evaluate pipeline
+    # cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=1)
+    cv = KFold(n_splits=10, shuffle=True, random_state=11)
+    scores = cross_validate(pipeline, X, y, scoring=scoring, cv=cv, n_jobs=-1)
+    precision = mean(scores['test_precision'])
+    recall = mean(scores['test_recall'])
+    f1 = mean(scores['test_f1'])
+    roc = mean(scores['test_roc_auc'])
+
+    print(f'Mean Precision: {precision}')
+    print(f'Mean recall: {recall}')
+    print(f'Mean f1: {f1}')
+    print(f'Mean ROC AUC: {roc}')

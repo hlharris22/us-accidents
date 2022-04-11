@@ -15,9 +15,13 @@ from imblearn.over_sampling import SMOTE
 from imblearn.pipeline import Pipeline
 from imblearn.under_sampling import RandomUnderSampler
 from numpy import mean
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import RepeatedStratifiedKFold, cross_val_score, cross_validate, KFold
+from sklearn.neighbors import KNeighborsRegressor
 from sklearn.preprocessing import MinMaxScaler
+from numba import jit, cuda
+from sklearn.naive_bayes import GaussianNB
 
 # Set pandas DataFrame options
 from sklearn.tree import DecisionTreeClassifier
@@ -49,13 +53,11 @@ print(acc_df.info())
 
 # Calculate time of delay (seconds) from start and end time - Convert times to datetime objects
 acc_df[['Start_Time', 'End_Time']] = acc_df[['Start_Time', 'End_Time']].apply(pd.to_datetime)
-acc_df['Delay_Time(s)'] = acc_df['End_Time'] - acc_df['Start_Time']
-acc_df['Delay_Time(s)'] = acc_df['Delay_Time(s)'] / np.timedelta64(1, 's')  # Convert time to second.
 acc_df['Month'] = acc_df['Start_Time'].dt.month  # Add a column for month
 acc_df['Year'] = acc_df['Start_Time'].dt.year  # Add a column for year
 
 # Remove features
-acc_df.drop(acc_df.columns[[0, 3, 6, 7, 9, 10, 11, 12, 13, 14, 16, 17, 18, 19, 20, 22, 24, 26, 27, 44, 45, 46]],
+acc_df.drop(acc_df.columns[[0, 3, 6, 7, 8, 9, 10, 11, 13, 14, 16, 17, 18, 19, 20, 22, 26, 42]],
             axis=1,
             inplace=True)
 acc_df.reset_index().drop(["index"], axis=1)
@@ -77,8 +79,8 @@ acc_df.loc[(acc_df['Precipitation(in)'].isnull()) & (acc_df['precipitation'] == 
 print("----After Setting Precipitation(in) = 0----")
 print(acc_df.info())
 
-# Remove features
-acc_df.drop(acc_df.columns[[10, 28]],
+# Remove features weather_condition and precipitation
+acc_df.drop(acc_df.columns[[12, 31]],
             axis=1,
             inplace=True)
 
@@ -92,10 +94,18 @@ print("----Post null value Removal Data Inspection----")
 print(acc_df.isnull().sum())
 
 # Convert boolean features to 0 and 1.
-acc_df.iloc[:, 10:23] = acc_df.iloc[:, 10:23].astype(int)
+acc_df.iloc[:, 12:24] = acc_df.iloc[:, 12:24].astype(int)
 
 # Convert Day and Night to Day = 0, Night = 1
 acc_df['Sunrise_Sunset'].replace({"Day": 0, "Night": 1}, inplace=True)
+acc_df['Civil_Twilight'].replace({"Day": 0, "Night": 1}, inplace=True)
+acc_df['Nautical_Twilight'].replace({"Day": 0, "Night": 1}, inplace=True)
+acc_df['Astronomical_Twilight'].replace({"Day": 0, "Night": 1}, inplace=True)
+acc_df['Side'].replace({"L": 0, "R": 1}, inplace=True)
+
+# Convert Severity to a binary ranking
+acc_df['Severity'] = acc_df['Severity'].replace([1,2], 1)
+acc_df['Severity'] = acc_df['Severity'].replace([3,4], 2)
 
 
 # Remove outliers
@@ -124,17 +134,15 @@ def print_outliers(column_name, data_frame):
 
 
 # Print outliers
-print_outliers('Distance(mi)', acc_df)
 print_outliers('Temperature(F)', acc_df)
 print_outliers('Humidity(%)', acc_df)
+print_outliers('Pressure(in)', acc_df)
 print_outliers('Visibility(mi)', acc_df)
+print_outliers('Wind_Speed(mph)', acc_df)
 print_outliers('Precipitation(in)', acc_df)
-print_outliers('Delay_Time(s)', acc_df)
 
 # Remove outliers
-acc_df = remove_outliers('Distance(mi)', acc_df)
 acc_df = remove_outliers('Temperature(F)', acc_df)
-acc_df = remove_outliers('Delay_Time(s)', acc_df)
 acc_df = acc_df.reset_index(drop=True)
 
 
@@ -179,14 +187,14 @@ print(freq_year)
 freq_year.to_csv(r'Frequency_Statistics_Year.csv', index=False)
 
 # Display descriptive statistics
-statistics_df = describe(acc_df.iloc[:, [0, 4, 6, 7, 8, 9, 24]])
+statistics_df = describe(acc_df.iloc[:, [0, 6, 7, 8, 9, 10, 11]])
 print("----Descriptive Statistics for Quantitative Features----")
 print(statistics_df)
 statistics_df.to_csv(r'Descriptive_Statistics.csv', index=False)
 
 # Normalize Values
-acc_df.iloc[:, [4, 6, 7, 8, 9, 24]] = MinMaxScaler().fit_transform(acc_df.iloc[:, [4, 6, 7, 8, 9, 24]])
-acc_df_normalized = acc_df.iloc[:, [0, 4, 6, 7, 8, 9, 24]]
+acc_df.iloc[:, [6, 7, 8, 9, 10, 11]] = MinMaxScaler().fit_transform(acc_df.iloc[:, [6, 7, 8, 9, 10, 11]])
+acc_df_normalized = acc_df.iloc[:, [0, 6, 7, 8, 9, 10, 11]]
 
 # Descriptive Bivariate Analysis
 covariance_df = acc_df_normalized.cov().round(4)
@@ -201,7 +209,7 @@ spearman_df = acc_df_normalized.corr("spearman").round(4)
 print("----Spearman Correlation----")
 print(spearman_df)
 spearman_df.to_csv(r'Spearman.csv', index=False)
-road_acc_df = acc_df.iloc[:, [0, 4, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]]
+road_acc_df = acc_df.iloc[:, [0, 4, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]]
 spearman_df_2 = road_acc_df.corr("spearman").round(4)
 print("----Spearman Correlation (Road Amenities)----")
 print(spearman_df_2)
@@ -230,79 +238,95 @@ plt.title("Accidents by State", fontsize=25, fontweight='bold')
 plt.savefig("Accident_Count_State", dpi=1200, bbox_inches='tight')
 plt.show()
 
-# Convert nominal values to
-state_one_hot = pd.get_dummies(acc_df.State, prefix='State')
-month_one_hot = pd.get_dummies(acc_df.Month, prefix='Month')
-year_one_hot = pd.get_dummies(acc_df.Year, prefix='Year')
-concat_frames = [acc_df.reset_index(drop=True), state_one_hot.reset_index(drop=True),
-                 month_one_hot.reset_index(drop=True), year_one_hot.reset_index(drop=True)]
-acc_df = pd.concat(concat_frames, axis=1)
+# # Convert nominal values to
+# state_one_hot = pd.get_dummies(acc_df.State, prefix='State')
+# month_one_hot = pd.get_dummies(acc_df.Month, prefix='Month')
+# year_one_hot = pd.get_dummies(acc_df.Year, prefix='Year')
+# concat_frames = [acc_df.reset_index(drop=True), state_one_hot.reset_index(drop=True),
+#                  month_one_hot.reset_index(drop=True), year_one_hot.reset_index(drop=True)]
+# acc_df = pd.concat(concat_frames, axis=1)
+
+# Convert nominal values to frequency values
+acc_df["State_Freq"] = acc_df["State"].map(acc_df.groupby("State").size()/acc_df.shape[0])
+acc_df["Year_Freq"] = acc_df["Year"].map(acc_df.groupby("Year").size()/acc_df.shape[0])
+acc_df["Month_Freq"] = acc_df["Month"].map(acc_df.groupby("Month").size()/acc_df.shape[0])
+print("-----State Frequency------")
+print(acc_df['State_Freq'])
 
 # Remove features
-acc_df.drop(acc_df.columns[[1, 5, 25, 26]],
+acc_df.drop(acc_df.columns[[1, 5, 28, 29]],
             axis=1,
             inplace=True)
-acc_df = acc_df.drop(['Start_Lat', 'Start_Lng'], axis=1)
 
 # Inspect cleaned data
 print("----Cleaned DataFrame----")
 print(acc_df.info())
 acc_df.to_csv(r'Cleaned_Data.csv', index=False)
 
-print(acc_df['Severity'].value_counts())
-# https://machinelearningmastery.com/smote-oversampling-for-imbalanced-classification/
-# https://machinelearningmastery.com/multi-class-imbalanced-classification/
-# https://machinelearningmastery.com/imbalanced-classification-with-python-7-day-mini-course/
-# https://machinelearningmastery.com/multinomial-logistic-regression-with-python/
+# Feature Selection by wrapper technique
+wrapper_y = acc_df['Severity']
+wrapper_X = acc_df.drop(['Severity'], axis=1)
 
-# Convert Severity to a binary ranking
-acc_df['Severity'] = acc_df['Severity'].replace([1,2], 1)
-acc_df['Severity'] = acc_df['Severity'].replace([3,4], 2)
-print("----Class Value Counts----")
-print(acc_df['Severity'].value_counts())
+# Use DecisionTreeClassifier to inspect 1 to 10 features
+sfs = SFS(DecisionTreeClassifier(), k_features=(1, 10), floating=False, forward=True, cv=0, n_jobs=-1, scoring="precision")
+sfs.fit(wrapper_X, wrapper_y)
 
+# Best Features found through forward selection
+print(f'Forward Selection: {sfs.k_feature_names_}')
+print(f'score = {sfs.k_score_}')
+print(f'metric dictionary')
 
+# Plot feature selection results
+fig1 = plot_sfs(sfs.get_metric_dict(), kind='std_dev')
+plt.grid()
+plt.show()
 
+# Print Feature Selection metrics
+metrics = sfs.get_metric_dict()
+print("-----Wrapper Feature Selection Metrics------")
+for value in metrics.values():
+    print(value)
 
-# y = acc_df['Severity']
-# X = acc_df.drop(['Severity'], axis=1)
-# print(y)
-# print(X)
-#
-# sfs = SFS(LogisticRegression(), k_features=(1, 30), floating=False, forward=True, cv=0)
-# sfs.fit(X, y)
-#
-# # Best Features found through forward selection
-# print(f'Forward Selection: {sfs.k_feature_names_}')
-# print(f'score = {sfs.k_score_}')
-#
-# fig1 = plot_sfs(sfs.get_metric_dict(), kind='std_dev')
-# plt.grid()
-# plt.show()
+# Define Target attribute and predictors
+ml_y = acc_df['Severity'].to_numpy()
+ml_X = acc_df[['Start_Lat', 'Start_Lng', 'Humidity(%)', 'Pressure(in)', 'Wind_Speed(mph)', 'Civil_Twilight']].to_numpy()
 
-#Machine Learning Algorithms
-y = acc_df['Severity'].to_numpy()
-X = acc_df.drop(['Severity'], axis=1).to_numpy()
-print(y)
-print(X)
-models = [DecisionTreeClassifier(), LogisticRegression(solver='liblinear', class_weight='balanced')]
-for model in models:
-    # define pipeline
-    scoring = ['precision', 'recall', 'f1', 'roc_auc']
+# Define ml models
+estimators = {'Decision Tree': DecisionTreeClassifier(),
+              'Random Forest': RandomForestClassifier(),
+              'Logistic Regression': LogisticRegression(solver='liblinear', class_weight='balanced'),
+              'Gaussian Naive Bayes': GaussianNB(),
+              }
+
+for estimator_name, estimator_object in estimators.items():
+
+    # Define Scores
+    score = ['precision', 'recall', 'f1', 'roc_auc']
     under = RandomUnderSampler(sampling_strategy=0.5)
-    steps = [('under', under), ('model', model)]
+    steps = [('under', under), ('model', estimator_object)]
     pipeline = Pipeline(steps=steps)
 
-    # evaluate pipeline
-    # cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=1)
+    # Define F-fold details
     cv = KFold(n_splits=10, shuffle=True, random_state=11)
-    scores = cross_validate(pipeline, X, y, scoring=scoring, cv=cv, n_jobs=-1)
+
+    # Run ml models
+    scores = cross_validate(pipeline, ml_X, ml_y, scoring=score, cv=cv, n_jobs=-1)
+
+    # predictions of the model and visualize.
+    # fit model then produce labels.
+    labels = estimator_object.predict(ml_X)
+    print(labels)
+
+    # Store ml models scores
     precision = mean(scores['test_precision'])
     recall = mean(scores['test_recall'])
     f1 = mean(scores['test_f1'])
     roc = mean(scores['test_roc_auc'])
 
+    # Display scores
+    print(f'-----{estimator_name}-----')
     print(f'Mean Precision: {precision}')
     print(f'Mean recall: {recall}')
     print(f'Mean f1: {f1}')
-    print(f'Mean ROC AUC: {roc}')
+    print(f'Mean ROC AUC: {roc}\n')
+

@@ -2,30 +2,29 @@
 # CPSC 5240
 # CRN 20968
 # Hunter Harris: zgt795
-# Project: Part 2
+# Project: Part 3
 
 # Import Libraries
 import pandas as pd
 import matplotlib.pyplot as plt
-import numpy as np
 import seaborn as sns
 from mlxtend.feature_selection import SequentialFeatureSelector as SFS
 from mlxtend.plotting import plot_sequential_feature_selection as plot_sfs
-from imblearn.over_sampling import SMOTE
-from imblearn.pipeline import Pipeline
-from imblearn.under_sampling import RandomUnderSampler
-from numpy import mean
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import RepeatedStratifiedKFold, cross_val_score, cross_validate, KFold
-from sklearn.neighbors import KNeighborsRegressor
+from sklearn.metrics import roc_auc_score, roc_curve, confusion_matrix, classification_report
+from sklearn.model_selection import train_test_split, KFold, cross_validate
 from sklearn.preprocessing import MinMaxScaler
-from numba import jit, cuda
-from sklearn.naive_bayes import GaussianNB
+from sklearn.tree import DecisionTreeClassifier
+from numpy import mean
+import time
+
+from yellowbrick.classifier import ClassPredictionError
+
+start_time = time.time()
+print(start_time)
 
 # Set pandas DataFrame options
-from sklearn.tree import DecisionTreeClassifier
-
 pd.set_option('display.max_columns', None)
 
 # Store data as a DataFrame object
@@ -132,7 +131,6 @@ def print_outliers(column_name, data_frame):
     print(f"Number of outliers below {lower}: ", out_above_count)
     print(f"Number of outliers above {upper}: ", out_below_count)
 
-
 # Print outliers
 print_outliers('Temperature(F)', acc_df)
 print_outliers('Humidity(%)', acc_df)
@@ -170,7 +168,6 @@ def frequency_stats(series):
     frequency_df['Relative Cumulative Frequency'] = 100 * (
         (frequency_df['Absolute Cumulative Frequency'] / frequency_df['Absolute Frequency'].sum()).round(4))
     return frequency_df
-
 
 # Display frequency statistics
 print("----Frequency Statistics for Severity----")
@@ -222,6 +219,7 @@ plt.xlabel('Month', fontweight='bold', fontsize=14)
 plt.ylabel('Count', fontweight='bold', fontsize=14)
 plt.legend(title="Severity", bbox_to_anchor=(1.01, 1), borderaxespad=0, fontsize=10, shadow=True, borderpad=1)
 plt.title("Accident Severity by Month", fontsize=15, fontweight='bold')
+
 # Save figure
 plt.savefig("Accident_Severity_Month", dpi=1200, bbox_inches='tight')
 plt.show()
@@ -234,17 +232,10 @@ plt.ylabel("Count", fontweight='bold', fontsize=22)
 plt.xticks(fontsize=12, rotation=90)
 plt.yticks(fontsize=12)
 plt.title("Accidents by State", fontsize=25, fontweight='bold')
+
 # Save figure
 plt.savefig("Accident_Count_State", dpi=1200, bbox_inches='tight')
 plt.show()
-
-# # Convert nominal values to
-# state_one_hot = pd.get_dummies(acc_df.State, prefix='State')
-# month_one_hot = pd.get_dummies(acc_df.Month, prefix='Month')
-# year_one_hot = pd.get_dummies(acc_df.Year, prefix='Year')
-# concat_frames = [acc_df.reset_index(drop=True), state_one_hot.reset_index(drop=True),
-#                  month_one_hot.reset_index(drop=True), year_one_hot.reset_index(drop=True)]
-# acc_df = pd.concat(concat_frames, axis=1)
 
 # Convert nominal values to frequency values
 acc_df["State_Freq"] = acc_df["State"].map(acc_df.groupby("State").size()/acc_df.shape[0])
@@ -267,8 +258,8 @@ acc_df.to_csv(r'Cleaned_Data.csv', index=False)
 wrapper_y = acc_df['Severity']
 wrapper_X = acc_df.drop(['Severity'], axis=1)
 
-# Use DecisionTreeClassifier to inspect 1 to 10 features
-sfs = SFS(DecisionTreeClassifier(), k_features=(1, 10), floating=False, forward=True, cv=0, n_jobs=-1, scoring="precision")
+# Use DecisionTreeClassifier to determine best number of features and best features
+sfs = SFS(DecisionTreeClassifier(), k_features=13, floating=False, forward=True, cv=0, n_jobs=-1, scoring="precision")
 sfs.fit(wrapper_X, wrapper_y)
 
 # Best Features found through forward selection
@@ -278,55 +269,122 @@ print(f'metric dictionary')
 
 # Plot feature selection results
 fig1 = plot_sfs(sfs.get_metric_dict(), kind='std_dev')
+plt.title("Decision Tree Sequential Feature Selector")
 plt.grid()
 plt.show()
 
 # Print Feature Selection metrics
-metrics = sfs.get_metric_dict()
+metrics = pd.DataFrame.from_dict(sfs.get_metric_dict()).T
 print("-----Wrapper Feature Selection Metrics------")
-for value in metrics.values():
-    print(value)
+metrics.to_csv(r'SFS_Results.csv', index=False)
+print(metrics)
 
 # Define Target attribute and predictors
-ml_y = acc_df['Severity'].to_numpy()
-ml_X = acc_df[['Start_Lat', 'Start_Lng', 'Humidity(%)', 'Pressure(in)', 'Wind_Speed(mph)', 'Civil_Twilight']].to_numpy()
+ml_y = acc_df['Severity']
+ml_X = acc_df[
+    ['Start_Lat', 'Start_Lng', 'Temperature(F)', 'Humidity(%)', 'Pressure(in)', 'Visibility(mi)', 'Wind_Speed(mph)',
+     'Precipitation(in)', 'Sunrise_Sunset', 'Civil_Twilight', 'Nautical_Twilight', 'Astronomical_Twilight',
+     'Year_Freq']]
+X_train, X_test, y_train, y_test = train_test_split(ml_X, ml_y, random_state=11, test_size=0.3)
+
+# fit data to models
+DT = DecisionTreeClassifier()
+DT.fit(X=X_train, y=y_train)
+RF = RandomForestClassifier()
+RF.fit(X=X_train, y=y_train)
+LR = LogisticRegression(solver='liblinear')
+LR.fit(X=X_train, y=y_train)
 
 # Define ml models
-estimators = {'Decision Tree': DecisionTreeClassifier(),
-              'Random Forest': RandomForestClassifier(),
-              'Logistic Regression': LogisticRegression(solver='liblinear', class_weight='balanced'),
-              'Gaussian Naive Bayes': GaussianNB(),
+estimators = {'Decision Tree': DT,
+              'Random Forest': RF,
+              'Logistic Regression': LR,
               }
 
-for estimator_name, estimator_object in estimators.items():
 
+def model_analysis(models):
+    for estimator_name, estimator_object in models.items():
+        # Test model for predictions
+        predicted = estimator_object.predict(X_test)
+        expected = y_test
+
+        # Build confusion matrix
+        confusion = confusion_matrix(expected, predicted)
+        confusion_df = pd.DataFrame(confusion, index=[1, 2], columns=[1, 2])
+        print(confusion)
+
+        # Display and save confusion matrix
+        sns.heatmap(confusion_df, annot=True, cmap='Reds', fmt=".1f")
+        plt.title(f"Confusion Matrix: {estimator_name}")
+        plt.ylabel("Expected Values")
+        plt.xlabel("Predicted Values")
+        plt.savefig(f"confusion_matrix_{estimator_name}")
+        plt.show()
+
+        # Display and save performance metrics
+        print(f'{estimator_name} accuracy: {estimator_object.score(X_test, y_test)}')
+        print(f'Classification Report')
+        classification = pd.DataFrame(
+            classification_report(expected, predicted, target_names=["1", "2"], output_dict=True)).transpose()
+        classification.to_csv(f'classification_{estimator_name}.csv', index=False)
+        print(classification)
+
+        # Visualize prediction error
+        visualizer = ClassPredictionError(estimator_object)
+        visualizer.fit(X_train, y_train)
+        visualizer.score(X_test, y_test)
+
+        # Save plot
+        visualizer.show(f"prediction_error_{estimator_name}")
+        plt.clf()
+
+
+def roc_analysis(models):
+    for estimator_name, estimator_object in models.items():
+        # fit data to model
+        model = estimator_object
+        model.fit(X=X_train, y=y_train)
+
+        # Get predictions, false positive rate, true positive rate, and threshold
+        predicted_prob = estimator_object.predict_proba(X_test)[::, 1]
+        false_positive_rate, true_positive_rate, threshold = roc_curve(y_test, predicted_prob, pos_label=2)
+        auc = roc_auc_score(y_test, predicted_prob)
+
+        # Plot ROC AUC
+        plt.plot([0, 1], [0, 1], linestyle='--')
+        plt.plot(false_positive_rate, true_positive_rate, label=f'AUC_{estimator_name} ' + str(auc))
+
+
+model_analysis(estimators)
+roc_analysis(estimators)
+
+# Plot ROC AUC curve
+plt.title('ROC AUC')
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.legend(loc=4)
+plt.show()
+
+# Compared models using performance metrics precision, recall, and roc auc
+for estimator_name, estimator_object in estimators.items():
     # Define Scores
-    score = ['precision', 'recall', 'f1', 'roc_auc']
-    under = RandomUnderSampler(sampling_strategy=0.5)
-    steps = [('under', under), ('model', estimator_object)]
-    pipeline = Pipeline(steps=steps)
+    score = ['precision', 'recall', 'roc_auc']
 
     # Define F-fold details
     cv = KFold(n_splits=10, shuffle=True, random_state=11)
 
     # Run ml models
-    scores = cross_validate(pipeline, ml_X, ml_y, scoring=score, cv=cv, n_jobs=-1)
-
-    # predictions of the model and visualize.
-    # fit model then produce labels.
-    labels = estimator_object.predict(ml_X)
-    print(labels)
+    scores = cross_validate(estimator_object, ml_X, ml_y, scoring=score, cv=cv, n_jobs=-1)
 
     # Store ml models scores
     precision = mean(scores['test_precision'])
     recall = mean(scores['test_recall'])
-    f1 = mean(scores['test_f1'])
     roc = mean(scores['test_roc_auc'])
 
     # Display scores
-    print(f'-----{estimator_name}-----')
+    print(f'-----{estimator_name} Results-----')
     print(f'Mean Precision: {precision}')
     print(f'Mean recall: {recall}')
-    print(f'Mean f1: {f1}')
     print(f'Mean ROC AUC: {roc}\n')
 
+print("--- %s seconds ---" % (time.time() - start_time))

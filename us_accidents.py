@@ -17,12 +17,8 @@ from sklearn.model_selection import train_test_split, KFold, cross_validate
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.tree import DecisionTreeClassifier
 from numpy import mean
-import time
-
 from yellowbrick.classifier import ClassPredictionError
 
-start_time = time.time()
-print(start_time)
 
 # Set pandas DataFrame options
 pd.set_option('display.max_columns', None)
@@ -387,4 +383,3 @@ for estimator_name, estimator_object in estimators.items():
     print(f'Mean recall: {recall}')
     print(f'Mean ROC AUC: {roc}\n')
 
-print("--- %s seconds ---" % (time.time() - start_time))
